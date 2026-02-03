@@ -11,9 +11,6 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
-// For Vercel serverless deployment - export the app
-export default app;
-
 // Only start server if not in Vercel serverless environment
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   const server = app.listen(PORT, () => {
@@ -38,14 +35,15 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
       process.exit(0);
     });
   });
+
+  process.on('unhandledRejection', (err) => {
+    console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+    console.error(err.name, err.message);
+    server.close(() => {
+      process.exit(1);
+    });
+  });
 }
 
-process.on('unhandledRejection', (err) => {
-  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  console.error(err.name, err.message);
-  server.close(() => {
-    process.exit(1);
-  });
-});
-
-export default server;
+// For Vercel serverless deployment
+export default app;
