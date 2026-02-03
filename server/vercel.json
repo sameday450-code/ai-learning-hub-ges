@@ -2,28 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "src/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["src/**", "prisma/**"]
-      }
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/health",
-      "dest": "src/server.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "src/server.js"
-    },
-    {
       "src": "/(.*)",
-      "dest": "src/server.js"
+      "dest": "api/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
