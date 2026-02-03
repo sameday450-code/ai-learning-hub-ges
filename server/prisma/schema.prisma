@@ -1,0 +1,93 @@
+// Prisma Schema for AI Learning Hub
+// Ghana Education Platform Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Student Model
+model Student {
+  id              String      @id @default(uuid())
+  email           String      @unique
+  password        String
+  firstName       String
+  lastName        String
+  className       String      // e.g., "JHS 1", "SHS 2"
+  phoneNumber     String?
+  profileImage    String?     @default("default-avatar.png")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  questions       Question[]
+  progress        Progress[]
+  
+  @@map("students")
+}
+
+// Subject Model
+model Subject {
+  id              String      @id @default(uuid())
+  name            String      @unique
+  code            String      @unique // e.g., "MATH", "ENG", "SOC"
+  description     String?
+  level           String      // "JHS" or "SHS"
+  syllabus        Json?       // GES syllabus topics
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  questions       Question[]
+  progress        Progress[]
+  
+  @@map("subjects")
+}
+
+// Question Model - Tracks all student interactions
+model Question {
+  id              String      @id @default(uuid())
+  studentId       String
+  subjectId       String
+  questionText    String      @db.Text
+  aiResponse      String      @db.Text
+  isVoiceEnabled  Boolean     @default(false)
+  audioUrl        String?
+  difficulty      String?     // "easy", "medium", "hard"
+  isCorrect       Boolean?    // If student confirmed answer
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  student         Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject         Subject     @relation(fields: [subjectId], references: [id])
+  
+  @@map("questions")
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([createdAt])
+}
+
+// Progress Model - Tracks student performance
+model Progress {
+  id              String      @id @default(uuid())
+  studentId       String
+  subjectId       String
+  questionsAsked  Int         @default(0)
+  correctAnswers  Int         @default(0)
+  totalTimeSpent  Int         @default(0) // in minutes
+  lastPracticed   DateTime    @default(now())
+  accuracyScore   Float       @default(0.0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  student         Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject         Subject     @relation(fields: [subjectId], references: [id])
+  
+  @@unique([studentId, subjectId])
+  @@map("progress")
+  @@index([studentId])
+}
