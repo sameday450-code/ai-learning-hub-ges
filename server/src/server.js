@@ -11,9 +11,13 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`
+// For Vercel serverless deployment - export the app
+export default app;
+
+// Only start server if not in Vercel serverless environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const server = app.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║         AI LEARNING HUB - Ghana Education Platform        ║
@@ -23,17 +27,18 @@ const server = app.listen(PORT, () => {
 ║  Database: Connected                                      ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
-  `);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+    `);
   });
-});
+
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  });
+}
 
 process.on('unhandledRejection', (err) => {
   console.error('UNHANDLED REJECTION! 💥 Shutting down...');
