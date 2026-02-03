@@ -21,29 +21,37 @@ import { notFound } from './middleware/notFound.js';
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Trust proxy for Vercel
+app.set('trust proxy', 1);
 
-// CORS configuration - Allow multiple origins for production
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  process.env.CORS_ORIGIN,
-  process.env.FRONTEND_URL,
-].filter(Boolean);
-
-app.use(cors({
+// CORS configuration - MUST be before other middleware for mobile compatibility
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (mobile apps, curl, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    // Check if origin is allowed
-    if (allowedOrigins.some(allowed => origin.startsWith(allowed) || allowed === '*')) {
+    // Allow all vercel.app subdomains
+    if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     
-    // In production, also allow any vercel.app subdomain
-    if (origin.endsWith('.vercel.app')) {
+    // Allow localhost for development
+    if (origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    // Allow configured origins
+    const allowedOrigins = [
+      process.env.CORS_ORIGIN,
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+    
+    if (allowedOrigins.some(allowed => origin === allowed || allowed === '*')) {
+      return callback(null, true);
+    }
+    
+    // In production, be more permissive to avoid mobile issues
+    if (process.env.NODE_ENV === 'production') {
       return callback(null, true);
     }
     
@@ -51,13 +59,25 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400, // 24 hours - cache preflight requests
+};
+
+// Apply CORS before everything else
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Security middleware - configured for mobile compatibility
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" },
+  contentSecurityPolicy: false, // Disable CSP for API server
 }));
 
-// Handle preflight requests
-app.options('*', cors());
-
-// Rate limiting
+// Rate limiting - more lenient for mobile
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,

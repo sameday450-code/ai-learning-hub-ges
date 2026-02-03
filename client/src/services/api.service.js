@@ -4,13 +4,15 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 console.log('API URL configured:', API_URL);
 
-// Create axios instance
+// Create axios instance with mobile-friendly settings
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 60000, // 60 second timeout for slower mobile connections
+  withCredentials: false, // Disable credentials for simpler CORS on mobile
 });
 
 // Request interceptor to add token
