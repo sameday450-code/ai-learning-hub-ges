@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, TrendingUp, BookOpen, Target, Clock } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ArrowLeft, TrendingUp, BookOpen, Target, Clock, Award, Flame, Calendar, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Area, AreaChart } from 'recharts';
 import { progressService } from '../services/api.service';
 import { useAuth } from '../context/AuthContext';
 
 const Progress = () => {
   const { user } = useAuth();
   const [progressData, setProgressData] = useState(null);
+  const [detailedStats, setDetailedStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     loadProgress();
+    loadDetailedStats();
   }, []);
 
   const loadProgress = async () => {
@@ -23,6 +26,15 @@ const Progress = () => {
       console.error('Failed to load progress:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDetailedStats = async () => {
+    try {
+      const data = await progressService.getDetailedStats();
+      setDetailedStats(data);
+    } catch (error) {
+      console.error('Failed to load detailed stats:', error);
     }
   };
 
@@ -44,10 +56,32 @@ const Progress = () => {
   ];
 
   // Prepare chart data
-  const subjectStats = progressData?.subjectProgress || [];
-  const totalQuestions = progressData?.overall?.totalQuestions || 0;
-  const overallAccuracy = progressData?.overall?.accuracy || 0;
-  const totalTime = progressData?.overall?.totalTime || 0;
+  const subjectStats = progressData?.subjectProgress || progressData?.data?.progress?.map(p => ({
+    subjectName: p.subject?.name,
+    questionsAsked: p.questionsAsked,
+    correctAnswers: p.correctAnswers,
+    accuracyScore: p.accuracyScore,
+    timeSpent: Math.round((p.totalTimeSpent || 0) / 60),
+    lastPracticed: p.lastPracticed
+  })) || [];
+  
+  const summary = progressData?.data?.summary || {};
+  const totalQuestions = summary.totalQuestions || subjectStats.reduce((sum, s) => sum + (s.questionsAsked || 0), 0);
+  const overallAccuracy = parseFloat(summary.overallAccuracy) || (subjectStats.length > 0 
+    ? subjectStats.reduce((sum, s) => sum + (s.accuracyScore || 0), 0) / subjectStats.length 
+    : 0);
+  const totalTime = subjectStats.reduce((sum, s) => sum + (s.timeSpent || 0), 0);
+  
+  // Weekly activity data (mock for now, can be enhanced with real data)
+  const weeklyData = detailedStats?.insights ? [
+    { day: 'Mon', questions: Math.floor(Math.random() * 10) },
+    { day: 'Tue', questions: Math.floor(Math.random() * 10) },
+    { day: 'Wed', questions: Math.floor(Math.random() * 10) },
+    { day: 'Thu', questions: Math.floor(Math.random() * 10) },
+    { day: 'Fri', questions: Math.floor(Math.random() * 10) },
+    { day: 'Sat', questions: Math.floor(Math.random() * 10) },
+    { day: 'Sun', questions: detailedStats.insights.questionsThisWeek || 0 },
+  ] : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -75,6 +109,28 @@ const Progress = () => {
       </div>
 
       <div className="container-custom py-4 sm:py-6 md:py-8">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: TrendingUp },
+            { id: 'subjects', label: 'Subjects', icon: BookOpen },
+            { id: 'activity', label: 'Activity', icon: Calendar },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-primary-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           <motion.div
@@ -87,6 +143,11 @@ const Progress = () => {
               <div>
                 <p className="text-blue-100 text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1">Total Questions</p>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">{totalQuestions}</h3>
+                {detailedStats?.insights?.questionsThisWeek > 0 && (
+                  <p className="text-blue-200 text-[10px] mt-1">
+                    +{detailedStats.insights.questionsThisWeek} this week
+                  </p>
+                )}
               </div>
               <BookOpen className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-blue-200" />
             </div>
@@ -102,6 +163,9 @@ const Progress = () => {
               <div>
                 <p className="text-green-100 text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1">Accuracy</p>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">{overallAccuracy.toFixed(1)}%</h3>
+                <p className="text-green-200 text-[10px] mt-1">
+                  {overallAccuracy >= 80 ? '🌟 Excellent!' : overallAccuracy >= 60 ? '👍 Good progress' : '💪 Keep trying'}
+                </p>
               </div>
               <Target className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-green-200" />
             </div>
@@ -117,6 +181,7 @@ const Progress = () => {
               <div>
                 <p className="text-purple-100 text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1">Time Spent</p>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">{totalTime}h</h3>
+                <p className="text-purple-200 text-[10px] mt-1">Learning time</p>
               </div>
               <Clock className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-purple-200" />
             </div>
@@ -132,13 +197,71 @@ const Progress = () => {
               <div>
                 <p className="text-amber-100 text-[10px] sm:text-xs md:text-sm mb-0.5 sm:mb-1">Active Subjects</p>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold">{subjectStats.length}</h3>
+                {detailedStats?.insights?.mostPracticedSubject && (
+                  <p className="text-amber-200 text-[10px] mt-1 truncate">
+                    Top: {detailedStats.insights.mostPracticedSubject}
+                  </p>
+                )}
               </div>
-              <TrendingUp className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-amber-200" />
+              <Award className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-amber-200" />
             </div>
           </motion.div>
         </div>
 
-        {/* Charts */}
+        {/* Weekly Activity Chart */}
+        {activeTab === 'activity' && weeklyData.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card mb-6 sm:mb-8"
+          >
+            <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-800 mb-4 sm:mb-6">Weekly Activity</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={weeklyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Area type="monotone" dataKey="questions" stroke="#3b82f6" fill="#93c5fd" name="Questions" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </motion.div>
+        )}
+
+        {/* Recent Activity */}
+        {activeTab === 'activity' && detailedStats?.recentQuestions?.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card mb-6 sm:mb-8"
+          >
+            <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-800 mb-4 sm:mb-6">Recent Questions</h3>
+            <div className="space-y-3">
+              {detailedStats.recentQuestions.map((question, idx) => (
+                <div key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${
+                    question.isCorrect === true ? 'bg-green-400' :
+                    question.isCorrect === false ? 'bg-red-400' : 'bg-gray-300'
+                  }`}></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 line-clamp-2">{question.questionText}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded-full">
+                        {question.subject?.name || 'Unknown'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(question.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Charts - Show on overview and subjects tabs */}
+        {(activeTab === 'overview' || activeTab === 'subjects') && (
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Questions by Subject */}
           <motion.div
@@ -148,6 +271,7 @@ const Progress = () => {
             className="card"
           >
             <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-800 mb-4 sm:mb-6">Questions by Subject</h3>
+            {subjectStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
               <BarChart data={subjectStats}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -159,6 +283,14 @@ const Progress = () => {
                 <Bar dataKey="correctAnswers" fill="#10b981" name="Correct Answers" />
               </BarChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <BookOpen size={48} className="mx-auto mb-2 opacity-50" />
+                  <p>No data yet. Start learning!</p>
+                </div>
+              </div>
+            )}
           </motion.div>
 
           {/* Accuracy by Subject */}
@@ -169,6 +301,7 @@ const Progress = () => {
             className="card"
           >
             <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-800 mb-4 sm:mb-6">Accuracy Distribution</h3>
+            {subjectStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
               <PieChart>
                 <Pie
@@ -188,10 +321,20 @@ const Progress = () => {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <Target size={48} className="mx-auto mb-2 opacity-50" />
+                  <p>No accuracy data yet</p>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
+        )}
 
-        {/* Subject Details */}
+        {/* Subject Details - Show on overview and subjects tabs */}
+        {(activeTab === 'overview' || activeTab === 'subjects') && subjectStats.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -246,6 +389,28 @@ const Progress = () => {
             </div>
           </div>
         </motion.div>
+        )}
+
+        {/* Empty State for new users */}
+        {subjectStats.length === 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card text-center py-12"
+          >
+            <div className="text-6xl mb-4">📚</div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">No Progress Yet</h3>
+            <p className="text-gray-500 mb-6 max-w-md mx-auto">
+              Start asking questions in the dashboard to track your learning progress. Your performance will be recorded here!
+            </p>
+            <Link 
+              to="/dashboard" 
+              className="inline-block bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-8 rounded-xl transition-all transform hover:scale-105"
+            >
+              Start Learning
+            </Link>
+          </motion.div>
+        )}
 
         {/* Motivational Section */}
         <motion.div

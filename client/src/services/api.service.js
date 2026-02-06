@@ -110,6 +110,21 @@ export const progressService = {
     const response = await api.get('/progress');
     return response.data;
   },
+
+  getDetailedStats: async () => {
+    const response = await api.get('/progress/stats');
+    return response.data.data || response.data;
+  },
+
+  getSubjectProgress: async (subjectId) => {
+    const response = await api.get(`/progress/${subjectId}`);
+    return response.data.data || response.data;
+  },
+
+  submitFeedback: async (questionId, isCorrect) => {
+    const response = await api.post('/progress/feedback', { questionId, isCorrect });
+    return response.data;
+  },
 };
 
 export default api;

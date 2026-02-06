@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, MessageCircle, ChevronRight, Lightbulb, LogOut, BarChart3, Home, ChevronDown, Edit3, Check, Trash2, RefreshCw, Wifi, WifiOff, Clock, Volume2 } from 'lucide-react';
+import { Send, Mic, MessageCircle, ChevronRight, Lightbulb, LogOut, BarChart3, Home, ChevronDown, Edit3, Check, Trash2, RefreshCw, Wifi, WifiOff, Clock, Volume2, TrendingUp, Target, BookOpen, Award, Flame, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { aiService, subjectService } from '../services/api.service';
+import { aiService, subjectService, progressService } from '../services/api.service';
 import ChatBubble from '../components/ChatBubble';
 import VoiceButton from '../components/VoiceButton';
 
@@ -63,6 +63,11 @@ const Dashboard = () => {
   const [responseTime, setResponseTime] = useState(null);
   const [showTimestamps, setShowTimestamps] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  // Progress tracking state
+  const [progressData, setProgressData] = useState(null);
+  const [subjectProgress, setSubjectProgress] = useState(null);
+  const [isProgressLoading, setIsProgressLoading] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(null);
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -112,6 +117,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadSubjects();
+    loadProgressData();
     // Only set welcome message if no messages exist
     if (messages.length === 0) {
       setMessages([
@@ -124,6 +130,56 @@ const Dashboard = () => {
       ]);
     }
   }, [user]);
+
+  // Load progress data
+  const loadProgressData = async () => {
+    setIsProgressLoading(true);
+    try {
+      const data = await progressService.getDetailedStats();
+      setProgressData(data);
+    } catch (error) {
+      console.error('Failed to load progress:', error);
+    } finally {
+      setIsProgressLoading(false);
+    }
+  };
+
+  // Load subject-specific progress when subject is selected
+  const loadSubjectProgress = async (subjectId) => {
+    try {
+      const data = await progressService.getSubjectProgress(subjectId);
+      setSubjectProgress(data);
+    } catch (error) {
+      console.error('Failed to load subject progress:', error);
+      setSubjectProgress(null);
+    }
+  };
+
+  // Submit feedback on answer
+  const handleFeedback = async (questionId, isCorrect) => {
+    try {
+      await progressService.submitFeedback(questionId, isCorrect);
+      setShowFeedback(null);
+      // Reload progress data after feedback
+      loadProgressData();
+      if (selectedSubject) {
+        loadSubjectProgress(selectedSubject.id);
+      }
+      // Show confirmation
+      const feedbackMessage = {
+        id: `feedback-${Date.now()}`,
+        text: isCorrect 
+          ? '✅ Great! Your progress has been recorded.' 
+          : '📝 Got it! Keep practicing to improve.',
+        isUser: false,
+        timestamp: new Date(),
+        isNotification: true,
+      };
+      setMessages(prev => [...prev, feedbackMessage]);
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
+  };
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -239,6 +295,8 @@ const Dashboard = () => {
     setSelectedSubject(subject);
     // Clear response time when switching subjects
     setResponseTime(null);
+    // Load progress for selected subject
+    loadSubjectProgress(subject.id);
     setMessages(prev => [
       ...prev,
       {
@@ -331,10 +389,18 @@ const Dashboard = () => {
 
       setLastQuestionId(response.questionId);
       setMessages(prev => [...prev, aiMessage]);
+      // Show feedback option for the new question
+      setShowFeedback(response.questionId);
       
       // Clear pending question on success
       setPendingQuestion(null);
       localStorage.removeItem(STORAGE_KEYS.PENDING_QUESTION);
+      
+      // Refresh progress data after new question
+      loadProgressData();
+      if (selectedSubject) {
+        loadSubjectProgress(selectedSubject.id);
+      }
     } catch (error) {
       console.error('AI Error:', error);
       
@@ -369,7 +435,7 @@ const Dashboard = () => {
     setMessages([
       {
         id: 'welcome',
-        text: `Hello ${user?.firstName}!\nHow can I help you today?`,
+        text: `Hello Student ${user?.firstName}!\nHow can I help you today?`,
         isUser: false,
         timestamp: new Date(),
       }
@@ -523,6 +589,39 @@ const Dashboard = () => {
                 </div>
               )}
             </motion.div>
+
+            {/* Mobile Progress Quick Stats */}
+            {progressData && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-xl p-3 mt-3"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-bold text-gray-700 flex items-center gap-1.5">
+                    <TrendingUp size={14} className="text-blue-500" />
+                    Quick Stats
+                  </h4>
+                  <Link to="/progress" className="text-blue-500 text-xs font-medium">
+                    View Details →
+                  </Link>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-blue-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-blue-600">{progressData.insights?.questionsThisWeek || 0}</p>
+                    <p className="text-[10px] text-blue-500">This Week</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-green-600">{(progressData.insights?.averageAccuracy || 0).toFixed(0)}%</p>
+                    <p className="text-[10px] text-green-500">Accuracy</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold text-purple-600">{progressData.insights?.totalSubjects || 0}</p>
+                    <p className="text-[10px] text-purple-500">Subjects</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
           
           {/* Left Panel - Chat Area */}
@@ -549,7 +648,7 @@ const Dashboard = () => {
                     {isTyping || pendingQuestion ? (
                       <span className="flex items-center gap-2">
                         <RefreshCw size={14} className="animate-spin text-blue-500" />
-                        <span className="text-blue-600">AI is thinking...</span>
+                        <span className="text-blue-600">Samteck is thinking...</span>
                       </span>
                     ) : selectedSubject ? (
                       <span className="flex items-center gap-2">
@@ -610,6 +709,36 @@ const Dashboard = () => {
                           />
                         )}
                       </div>
+                      {/* Feedback buttons for AI responses */}
+                      {!message.isUser && message.questionId && showFeedback === message.questionId && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="ml-12 mt-2 flex items-center gap-2"
+                        >
+                          <span className="text-xs text-gray-500">Was this helpful?</span>
+                          <button
+                            onClick={() => handleFeedback(message.questionId, true)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 text-xs transition"
+                          >
+                            <ThumbsUp size={12} />
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => handleFeedback(message.questionId, false)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 text-xs transition"
+                          >
+                            <ThumbsDown size={12} />
+                            No
+                          </button>
+                          <button
+                            onClick={() => setShowFeedback(null)}
+                            className="text-gray-400 hover:text-gray-600 text-xs ml-1"
+                          >
+                            Skip
+                          </button>
+                        </motion.div>
+                      )}
                       {/* Timestamp */}
                       {showTimestamps && message.timestamp && (
                         <motion.div 
@@ -861,6 +990,181 @@ const Dashboard = () => {
                 <ChevronRight className="text-gray-400" size={20} />
               </div>
             </motion.div>
+
+            {/* Learning Progress Summary */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-white rounded-3xl shadow-xl p-5"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                  <TrendingUp size={20} className="text-blue-500" />
+                  My Progress
+                </h3>
+                <Link 
+                  to="/progress" 
+                  className="text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-1"
+                >
+                  View All
+                  <ChevronRight size={14} />
+                </Link>
+              </div>
+              
+              {isProgressLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-12 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : progressData ? (
+                <div className="space-y-3">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <BookOpen size={14} className="text-blue-500" />
+                        <span className="text-xs text-blue-600">Questions</span>
+                      </div>
+                      <p className="text-xl font-bold text-blue-700">
+                        {progressData.insights?.questionsThisWeek || 0}
+                        <span className="text-xs font-normal text-blue-500 ml-1">this week</span>
+                      </p>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Target size={14} className="text-green-500" />
+                        <span className="text-xs text-green-600">Accuracy</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-700">
+                        {(progressData.insights?.averageAccuracy || 0).toFixed(0)}%
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Most Practiced Subject */}
+                  {progressData.insights?.mostPracticedSubject && (
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Award size={14} className="text-purple-500" />
+                        <span className="text-xs text-purple-600">Top Subject</span>
+                      </div>
+                      <p className="text-sm font-bold text-purple-700">
+                        {progressData.insights.mostPracticedSubject}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Recent Activity */}
+                  {progressData.recentQuestions?.length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-xs font-semibold text-gray-500 mb-2">Recent Activity</h4>
+                      <div className="space-y-2 max-h-24 overflow-y-auto">
+                        {progressData.recentQuestions.slice(0, 3).map((q, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs">
+                            <div className={`w-2 h-2 rounded-full ${
+                              q.isCorrect === true ? 'bg-green-400' : 
+                              q.isCorrect === false ? 'bg-red-400' : 'bg-gray-300'
+                            }`}></div>
+                            <span className="text-gray-600 truncate flex-1">
+                              {q.questionText?.substring(0, 30)}...
+                            </span>
+                            <span className="text-gray-400 text-[10px]">
+                              {q.subject?.code || 'N/A'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-3xl mb-2">📊</div>
+                  <p className="text-gray-500 text-sm">Start learning to track progress</p>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Subject Progress (when subject selected) */}
+            {selectedSubject && subjectProgress?.progress && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white rounded-3xl shadow-xl p-5"
+              >
+                <h3 className="font-bold text-base text-gray-800 mb-3 flex items-center gap-2">
+                  📈 {selectedSubject.name} Progress
+                </h3>
+                <div className="space-y-3">
+                  {/* Accuracy Ring */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16">
+                      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="15.9155"
+                          fill="transparent"
+                          stroke="#e5e7eb"
+                          strokeWidth="3"
+                        />
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="15.9155"
+                          fill="transparent"
+                          stroke={
+                            subjectProgress.progress.accuracyScore >= 80 ? '#10b981' :
+                            subjectProgress.progress.accuracyScore >= 60 ? '#f59e0b' : '#ef4444'
+                          }
+                          strokeWidth="3"
+                          strokeDasharray={`${subjectProgress.progress.accuracyScore} 100`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold text-gray-700">
+                          {subjectProgress.progress.accuracyScore.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-semibold text-gray-800">{subjectProgress.progress.questionsAsked}</span> questions asked
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-semibold text-green-600">{subjectProgress.progress.correctAnswers}</span> correct answers
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Last practiced: {formatRelativeTime(subjectProgress.progress.lastPracticed)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Recent Questions for this subject */}
+                  {subjectProgress.recentQuestions?.length > 0 && (
+                    <div className="border-t pt-3">
+                      <h4 className="text-xs font-semibold text-gray-500 mb-2">Recent Questions</h4>
+                      <div className="space-y-1.5">
+                        {subjectProgress.recentQuestions.slice(0, 3).map((q, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-xs">
+                            <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                              q.isCorrect === true ? 'bg-green-400' : 
+                              q.isCorrect === false ? 'bg-red-400' : 'bg-gray-300'
+                            }`}></div>
+                            <span className="text-gray-600 line-clamp-2">
+                              {q.questionText}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
 
           </div>
         </div>
