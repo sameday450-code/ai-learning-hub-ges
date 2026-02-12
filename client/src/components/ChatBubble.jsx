@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { User, Bot, Sparkles, AlertCircle, Info, Check, CheckCheck } from 'lucide-react';
+import { MathSolutionCard, InlineMath } from './MathDisplay';
 
-const ChatBubble = ({ message, isUser, isTyping, isError, isNotification, status }) => {
+const ChatBubble = ({ message, isUser, isTyping, isError, isNotification, status, mathData }) => {
   if (isTyping) {
     return (
       <div className="flex items-start space-x-2 sm:space-x-3 mb-3 sm:mb-4">
@@ -114,49 +115,64 @@ const ChatBubble = ({ message, isUser, isTyping, isError, isNotification, status
           </div>
         ) : (
           <div className="px-3 py-2.5 sm:px-5 sm:py-3.5">
-            <div className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-sm sm:text-base">
-              {typeof message === 'string' && message.includes('!') ? (
-                <span className="text-blue-600">{message.split('\n')[0]}</span>
-              ) : null}
-            </div>
-            <div className="whitespace-pre-wrap leading-relaxed text-gray-700 text-sm sm:text-base">
-              {typeof message === 'string' ? (
-                message.split('\n').slice(message.includes('!') ? 1 : 0).map((line, i) => {
-                  // Check if line starts with "Step" for special formatting
-                  if (line.trim().toLowerCase().startsWith('step')) {
-                    return (
-                      <div key={i} className="my-2 sm:my-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-gray-100 shadow-sm">
-                        <span className="font-semibold text-blue-600 text-xs sm:text-sm">{line.split(':')[0]}:</span>
-                        <span className="text-gray-700 text-xs sm:text-sm">{line.split(':').slice(1).join(':')}</span>
-                      </div>
-                    );
-                  }
-                  // Format numbered lists
-                  if (/^\d+\./.test(line.trim())) {
-                    return (
-                      <div key={i} className="my-1 flex items-start gap-2">
-                        <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {line.trim().match(/^\d+/)[0]}
-                        </span>
-                        <span>{line.replace(/^\d+\.\s*/, '')}</span>
-                      </div>
-                    );
-                  }
-                  // Format bullet points
-                  if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
-                    return (
-                      <div key={i} className="my-1 flex items-start gap-2 pl-2">
-                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0 mt-2"></span>
-                        <span>{line.replace(/^[•-]\s*/, '')}</span>
-                      </div>
-                    );
-                  }
-                  return <div key={i} className={line.trim() === '' ? 'h-2' : ''}>{line}</div>;
-                })
-              ) : (
-                message
-              )}
-            </div>
+            {/* Render math solution card if mathData is present */}
+            {mathData && mathData.type === 'math-solution' ? (
+              <MathSolutionCard mathData={mathData} />
+            ) : (
+              <>
+                <div className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-sm sm:text-base">
+                  {typeof message === 'string' && message.includes('!') ? (
+                    <span className="text-blue-600">{message.split('\n')[0]}</span>
+                  ) : null}
+                </div>
+                <div className="whitespace-pre-wrap leading-relaxed text-gray-700 text-sm sm:text-base">
+                  {typeof message === 'string' ? (
+                    message.split('\n').slice(message.includes('!') ? 1 : 0).map((line, i) => {
+                      // Check if line starts with "Step" for special formatting
+                      if (line.trim().toLowerCase().startsWith('step')) {
+                        return (
+                          <div key={i} className="my-2 sm:my-3 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-gray-100 shadow-sm">
+                            <span className="font-semibold text-blue-600 text-xs sm:text-sm">{line.split(':')[0]}:</span>
+                            <span className="text-gray-700 text-xs sm:text-sm">{line.split(':').slice(1).join(':')}</span>
+                          </div>
+                        );
+                      }
+                      // Format numbered lists
+                      if (/^\d+\./.test(line.trim())) {
+                        return (
+                          <div key={i} className="my-1 flex items-start gap-2">
+                            <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {line.trim().match(/^\d+/)[0]}
+                            </span>
+                            <span>{line.replace(/^\d+\.\s*/, '')}</span>
+                          </div>
+                        );
+                      }
+                      // Format bullet points
+                      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+                        return (
+                          <div key={i} className="my-1 flex items-start gap-2 pl-2">
+                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0 mt-2"></span>
+                            <span>{line.replace(/^[•-]\s*/, '')}</span>
+                          </div>
+                        );
+                      }
+                      // Check for inline math (LaTeX patterns like \frac{}{})
+                      if (line.includes('\\frac') || line.includes('\\times') || line.includes('\\div')) {
+                        return (
+                          <div key={i} className="my-2">
+                            <InlineMath latex={line} />
+                          </div>
+                        );
+                      }
+                      return <div key={i} className={line.trim() === '' ? 'h-2' : ''}>{line}</div>;
+                    })
+                  ) : (
+                    message
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

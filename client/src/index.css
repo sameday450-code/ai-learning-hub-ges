@@ -153,3 +153,83 @@
   background: linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
   background-size: 1000px 100%;
 }
+
+/* Math Display Styles */
+.math-solution-card {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.math-solution-card .katex {
+  font-size: 1.15em;
+}
+
+.block-math {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.block-math .katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.inline-math {
+  display: inline;
+}
+
+.math-step {
+  position: relative;
+}
+
+.math-step::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 28px;
+  bottom: -16px;
+  width: 2px;
+  background: linear-gradient(to bottom, #dbeafe, transparent);
+}
+
+.math-step:last-child::before {
+  display: none;
+}
+
+/* Fraction display in chat */
+.katex .frac-line {
+  border-bottom-width: 0.08em;
+}
+
+/* Math input field styles */
+.fraction-input input {
+  font-family: 'Computer Modern', serif, system-ui;
+}
+
+.math-preview {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive math display */
+@media (max-width: 640px) {
+  .math-solution-card .katex {
+    font-size: 1em;
+  }
+  
+  .block-math .katex-display {
+    padding: 0.25rem;
+  }
+  
+  .math-step {
+    padding-left: 0;
+  }
+  
+  .math-step::before {
+    left: 12px;
+  }
+}

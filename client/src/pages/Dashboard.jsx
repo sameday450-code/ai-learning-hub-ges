@@ -225,6 +225,7 @@ const Dashboard = () => {
         timestamp: new Date(),
         questionId: response.questionId,
         responseTime: ((endTime - startTimeRef.current) / 1000).toFixed(1),
+        mathData: response.mathData || null,
       };
 
       setLastQuestionId(response.questionId);
@@ -380,6 +381,7 @@ const Dashboard = () => {
         questionId: response.questionId,
         responseTime: timeTaken,
         difficulty: response.difficulty,
+        mathData: response.mathData || null,
       };
 
       // Update user message status to delivered
@@ -701,6 +703,7 @@ const Dashboard = () => {
                           isError={message.isError}
                           isNotification={message.isNotification}
                           status={message.status}
+                          mathData={message.mathData}
                         />
                         {!message.isUser && message.questionId && (
                           <VoiceButton 

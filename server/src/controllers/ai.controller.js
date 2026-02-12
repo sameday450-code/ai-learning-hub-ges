@@ -6,6 +6,7 @@
 import prisma from '../utils/prisma.js';
 import { generateAIResponse, analyzeQuestionDifficulty } from '../ai/ai.service.js';
 import { textToSpeech, optimizeTextForSpeech } from '../ai/voice.service.js';
+import { isMathQuestion, generateMathResponse, formatForRichDisplay } from '../ai/math.service.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 /**
@@ -36,12 +37,40 @@ export const askQuestion = async (req, res, next) => {
       where: { id: studentId }
     });
 
-    // Generate AI response
-    const aiResult = await generateAIResponse(
-      question,
-      subject.name,
-      student.className
-    );
+    let aiResult;
+    let mathData = null;
+
+    // Check if this is a math question that can be solved symbolically
+    if (isMathQuestion(question, subject.name)) {
+      const mathResult = generateMathResponse(question, student.className);
+      
+      if (mathResult.success && !mathResult.needsAI) {
+        // Use symbolic math engine result
+        aiResult = {
+          success: true,
+          response: mathResult.response,
+          metadata: {
+            model: 'symbolic-math-engine',
+            tokens: 0
+          }
+        };
+        mathData = formatForRichDisplay(mathResult.mathData);
+      } else {
+        // Fall back to AI for complex questions
+        aiResult = await generateAIResponse(
+          question,
+          subject.name,
+          student.className
+        );
+      }
+    } else {
+      // Generate AI response for non-math questions
+      aiResult = await generateAIResponse(
+        question,
+        subject.name,
+        student.className
+      );
+    }
 
     if (!aiResult.success) {
       return next(new AppError('Failed to generate AI response', 500));
@@ -92,7 +121,9 @@ export const askQuestion = async (req, res, next) => {
         audioUrl,
         difficulty,
         subject: subject.name,
-        metadata: aiResult.metadata
+        metadata: aiResult.metadata,
+        // Include rich math data for frontend rendering
+        mathData: mathData
       }
     });
   } catch (error) {
