@@ -40,8 +40,10 @@ export default defineConfig({
         ]
       },
       workbox: {
-        // Only cache essential app assets, not large promotional images
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}']
+        // Only cache essential app assets, not large images
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        // Increase limit to avoid errors for logo1.png (2.2MB)
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024
       }
     })
   ],
