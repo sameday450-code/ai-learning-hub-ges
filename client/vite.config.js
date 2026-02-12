@@ -9,6 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.png', 'icon-192.png', 'icon-512.png'],
+      // Suppress warnings about large files that won't be precached
+      suppressWarnings: true,
       manifest: {
         name: 'AI Learning Hub',
         short_name: 'AI Hub',
