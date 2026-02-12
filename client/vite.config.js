@@ -39,7 +39,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
-        globIgnores: ['**/sign-up.png', '**/sign-in.png', '**/mobile-view.png', '**/desktop.png', '**/bg.png', '**/logo1.png']
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
       }
     })
   ],
