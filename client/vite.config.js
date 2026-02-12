@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.png', 'icon-192.png', 'icon-512.png'],
-      // Suppress warnings about large files that won't be precached
-      suppressWarnings: true,
+      // Allow large assets without failing the build
+      showMaximumFileSizeToCacheInBytesWarning: false,
       manifest: {
         name: 'AI Learning Hub',
         short_name: 'AI Hub',
@@ -40,12 +40,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
-        globIgnores: ['**/sign-up.png', '**/sign-in.png', '**/mobile-view.png', '**/desktop.png', '**/bg.png', '**/logo1.png'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
-      },
-      // Don't fail build for large assets that won't be precached
-      selfDestroying: false
+        // Only cache essential app assets, not large promotional images
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}']
+      }
     })
   ],
   server: {
