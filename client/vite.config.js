@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.png', 'logo1.png'],
+      includeAssets: ['icon.png', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'AI Learning Hub',
         short_name: 'AI Hub',
@@ -38,7 +38,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        globIgnores: ['**/sign-up.png', '**/sign-in.png', '**/mobile-view.png', '**/desktop.png', '**/bg.png', '**/logo1.png']
       }
     })
   ],
